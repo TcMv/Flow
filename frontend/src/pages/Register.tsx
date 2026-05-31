@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, LogIn } from "lucide-react"
+import { Loader2, UserPlus } from "lucide-react"
 
-export function Login() {
-  const { login, isLoading, isAuthenticated } = useAuth()
+export function Register() {
+  const { register, isLoading, isAuthenticated } = useAuth()
   const navigate = useNavigate()
+  const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   // If already authenticated, redirect
@@ -24,16 +26,26 @@ export function Login() {
     e.preventDefault()
     setError(null)
 
-    if (!email || !password) {
-      setError("Email and password are required.")
+    if (!name || !email || !password || !confirmPassword) {
+      setError("All fields are required.")
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.")
+      return
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.")
       return
     }
 
     try {
-      await login(email, password)
+      await register(email, password, name)
       navigate("/dashboard")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed. Please try again.")
+      setError(err instanceof Error ? err.message : "Registration failed. Please try again.")
     }
   }
 
@@ -44,8 +56,8 @@ export function Login() {
           <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary shadow-sm">
             <span className="text-sm font-bold text-primary-foreground">F</span>
           </div>
-          <CardTitle className="text-xl">Welcome to Flow</CardTitle>
-          <CardDescription>Enter your credentials to sign in</CardDescription>
+          <CardTitle className="text-xl">Create an Account</CardTitle>
+          <CardDescription>Enter your details to get started</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -54,6 +66,19 @@ export function Login() {
                 {error}
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Jane Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isLoading}
+                autoComplete="name"
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -76,7 +101,20 @@ export function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                autoComplete="current-password"
+                autoComplete="new-password"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isLoading}
+                autoComplete="new-password"
                 required
               />
             </div>
@@ -86,19 +124,19 @@ export function Login() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
                 <>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Sign In
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Create Account
                 </>
               )}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link to="/register" className="font-medium text-primary underline-offset-4 hover:underline">
-                Create one
+              Already have an account?{" "}
+              <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+                Sign in
               </Link>
             </p>
           </CardFooter>

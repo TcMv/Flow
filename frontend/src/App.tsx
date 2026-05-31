@@ -4,6 +4,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { Toaster } from "@/components/ui/toaster"
 import { Landing } from "@/pages/Landing"
 import { Login } from "@/pages/Login"
+import { Register } from "@/pages/Register"
 import { DashboardLayout } from "@/pages/DashboardLayout"
 import { DashboardHome } from "@/pages/DashboardHome"
 import {
@@ -22,6 +23,7 @@ export default function App() {
           {/* Public routes */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           {/* Protected dashboard routes */}
           <Route element={<ProtectedRoute />}>

@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from src.app.config import settings
 from src.app.database import engine, Base
+from src.app.routes.auth import router as auth_router
 from src.app.routes.health import router as health_router
 
 
@@ -31,3 +32,4 @@ app = FastAPI(
 # ── Routes ──────────────────────────────────────────────────────────
 
 app.include_router(health_router)
+app.include_router(auth_router)

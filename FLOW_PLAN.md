@@ -61,7 +61,7 @@ These are non-negotiable. If a gate fails, we stop or reassess before continuing
 
 || # | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-|| 0.1 | Create GitHub repo | Taran | 🟡 | Personal account — ready when you are |
+|| 0.1 | Create GitHub repo | Taran | ✅ | github.com/TcMv/Flow — code pushed |
 || 0.2 | Set up AWS Free Tier account | Taran | 🟡 | Doing this afternoon |
 || 0.3 | Reserve business name + domain | Taran | 🟡 | Using Vercel domain for now |
 || 0.4 | Scaffold monorepo structure | Me/Claude Code | ✅ | Done |
