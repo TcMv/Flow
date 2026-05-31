@@ -1,0 +1,12 @@
+.env
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+*.db
+.mypy_cache/
+.ruff_cache/
