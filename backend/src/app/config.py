@@ -28,5 +28,10 @@ class Settings(BaseSettings):
     # ── Database ─────────────────────────────────────────────────
     database_url: str = "sqlite+aiosqlite:///./flow_dev.db"
 
+    # ── LLM Key Encryption ───────────────────────────────────────
+    # Fernet master key for encrypting LLM API keys at rest.
+    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    encryption_key: str | None = None
+
 
 settings = Settings()

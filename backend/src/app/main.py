@@ -10,15 +10,17 @@ from src.app.config import settings
 from src.app.database import engine, Base
 from src.app.routes.auth import router as auth_router
 from src.app.routes.health import router as health_router
+from src.app.routes.agent import router as agent_router
+from src.app.routes.agent import setup_tools
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Create database tables on startup; dispose engine on shutdown."""
-    # For SQLite / simple dev, create tables on startup.
-    # In production, use Alembic migrations instead.
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # Register built-in agent tools
+    setup_tools()
     yield
     await engine.dispose()
 
@@ -33,3 +35,4 @@ app = FastAPI(
 
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(agent_router)
