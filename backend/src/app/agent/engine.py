@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,7 +53,7 @@ class AgentEngine:
     async def run(
         self,
         db: AsyncSession,
-        session_id: str,
+        session_id: uuid.UUID,
         user_message: str,
     ) -> AsyncGenerator[str, None]:
         """Execute the think→act→observe→log loop for a user message.
@@ -168,17 +169,15 @@ class AgentEngine:
     async def _auto_title(
         self,
         db: AsyncSession,
-        session_id: str,
+        session_id: uuid.UUID,
         user_message: str,
     ) -> None:
         """Set session title from the first user message if not already set."""
-        import uuid
-
         from src.app.models.agent_session import AgentSession
         from sqlalchemy import select as sa_select
 
         r = await db.execute(
-            sa_select(AgentSession.title).where(AgentSession.id == uuid.UUID(session_id))
+            sa_select(AgentSession.title).where(AgentSession.id == session_id)
         )
         current_title = r.scalar_one_or_none()
         if not current_title:
@@ -186,5 +185,5 @@ class AgentEngine:
             if len(user_message) > 80:
                 title += "..."
             await self._session_manager.update_title(
-                db, uuid.UUID(session_id), title,
+                db, session_id, title,
             )

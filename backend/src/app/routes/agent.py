@@ -126,7 +126,7 @@ async def chat(
     response_parts: list[str] = []
     async for chunk in engine.run(
         db=db,
-        session_id=str(session.id),
+        session_id=session.id,
         user_message=body.message,
     ):
         response_parts.append(chunk)
@@ -200,11 +200,39 @@ async def _get_active_llm_key(
     db: AsyncSession,
     tenant_id: uuid.UUID,
 ) -> LLMKey | None:
-    """Find the active LLM key for a tenant."""
+    """Find the active LLM key for a tenant.
+
+    Falls back to ``settings.flow_api_key`` if no key is stored in the
+    database — this lets users get started by just setting an env var.
+    When the env-var fallback is used, a lightweight in-memory key
+    object is returned (it won't be persisted).
+    """
     result = await db.execute(
         select(LLMKey).where(
             LLMKey.tenant_id == tenant_id,
             LLMKey.is_active == True,  # noqa: E712
         ).order_by(LLMKey.created_at.desc()).limit(1)
     )
-    return result.scalar_one_or_none()
+    db_key = result.scalar_one_or_none()
+    if db_key:
+        return db_key
+
+    # Fallback to env var
+    from src.app.config import settings
+
+    if settings.flow_api_key:
+        from src.app.agent.llm import encrypt_api_key
+
+        # Build a lightweight object with just enough for LLMRouter
+        fallback = LLMKey(
+            id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            provider=settings.flow_llm_provider,
+            api_key_encrypted=encrypt_api_key(settings.flow_api_key),
+            base_url=None,
+            model_name=settings.flow_llm_model,
+            is_active=True,
+        )
+        return fallback
+
+    return None

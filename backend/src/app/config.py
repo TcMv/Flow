@@ -33,5 +33,12 @@ class Settings(BaseSettings):
     # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     encryption_key: str | None = None
 
+    # ── LLM Env Var Fallback ─────────────────────────────────────
+    # If no LLM key is stored in the DB, fall back to these env vars.
+    # This makes it easy to get started without the key management UI.
+    flow_api_key: str | None = None
+    flow_llm_provider: str = "openai"
+    flow_llm_model: str = "gpt-4o-mini"
+
 
 settings = Settings()
