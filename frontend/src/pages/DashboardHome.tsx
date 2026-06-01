@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Bot, Activity, Users, Cpu, Sparkles, CheckCircle2, Loader2, Database, Workflow } from "lucide-react"
+import { Bot, Activity, Users, Cpu, Sparkles, CheckCircle2, Loader2, Workflow } from "lucide-react"
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
 
@@ -80,8 +79,6 @@ export function DashboardHome() {
   }
 
   const isSeeded = seedStatus?.is_seeded ?? false
-  const totalAvailable = (seedStatus?.skills.available.length ?? 0) + (seedStatus?.workflows.available.length ?? 0)
-
   return (
     <div className="space-y-8">
       {/* Header */}
