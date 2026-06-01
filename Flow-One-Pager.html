@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow — One chat to run your whole work</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  /* ── Fonts ──────────────────────────────────────────────── */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    /* Navy palette */
+    --navy-900: #0A1628;
+    --navy-800: #0F1D35;
+    --navy-700: #142849;
+    --navy-600: #1C3A6B;
+    --navy-500: #2A5091;
+    --navy-400: #4B7AC7;
+    --navy-100: #D8E3F6;
+    --navy-50:  #EEF3FB;
+
+    /* Emerald accent */
+    --emerald-600: #0F6B50;
+    --emerald-500: #158965;
+    --emerald-400: #22B081;
+    --emerald-300: #5CCCA6;
+    --emerald-100: #CAF1E3;
+    --emerald-50:  #E8F9F3;
+
+    /* Neutrals */
+    --neutral-900: #1A1D23;
+    --neutral-800: #2D3138;
+    --neutral-700: #43474F;
+    --neutral-500: #787C85;
+    --neutral-300: #C8CBD0;
+    --neutral-200: #E2E4E8;
+    --neutral-100: #F1F2F4;
+    --white:       #FFFFFF;
+
+    /* Semantic */
+    --success: #158965;
+
+    /* Typography */
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Spacing */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+    --space-3xl: 64px;
+
+    /* Layout */
+    --page-width: 210mm;
+    --page-height: 297mm;
+    --margin: 15mm;
+    --content-width: 180mm;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--neutral-900);
+    background: var(--neutral-200);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+
+  /* ── Page ──────────────────────────────────────────────── */
+  .page {
+    width: var(--page-width);
+    min-height: var(--page-height);
+    margin: 0 auto;
+    background: var(--white);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+
+  /* ── Header ────────────────────────────────────────────── */
+  .header {
+    padding: 10mm var(--margin) 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 12mm;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-mark {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .logo-mark svg { width: 28px; height: 28px; }
+
+  .logo-text {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy-900);
+    letter-spacing: -0.3px;
+  }
+
+  .header-badge {
+    display: flex;
+    gap: 12px;
+  }
+
+  .header-badge span {
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--neutral-500);
+    padding: 3px 10px;
+    border: 1px solid var(--neutral-200);
+    border-radius: 100px;
+  }
+
+  /* ── Hero ───────────────────────────────────────────────── */
+  .hero {
+    background: var(--navy-900);
+    padding: 14mm var(--margin) 12mm;
+    margin: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -10%;
+    width: 60%;
+    height: 140%;
+    background: radial-gradient(ellipse at center, rgba(34, 176, 129, 0.06) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(92, 204, 166, 0.12);
+    border: 1px solid rgba(92, 204, 166, 0.2);
+    border-radius: 100px;
+    padding: 4px 14px;
+    margin-bottom: 10px;
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--emerald-400);
+  }
+
+  .hero h1 {
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+    max-width: 90%;
+    margin-bottom: 8px;
+  }
+
+  .hero h1 .highlight {
+    color: var(--emerald-400);
+  }
+
+  .hero p {
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--navy-300);
+    max-width: 75%;
+    margin-bottom: 0;
+  }
+
+  /* ── Stats Bar ─────────────────────────────────────────── */
+  .stats-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--neutral-200);
+    padding: 5mm var(--margin);
+  }
+
+  .stat-item {
+    flex: 1;
+    text-align: left;
+  }
+
+  .stat-item .number {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--navy-900);
+    letter-spacing: -0.5px;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .stat-item .number .accent {
+    color: var(--emerald-600);
+  }
+
+  .stat-item .label {
+    font-size: 8px;
+    color: var(--neutral-500);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+  }
+
+  .stat-item + .stat-item {
+    border-left: 1px solid var(--neutral-200);
+    padding-left: var(--space-lg);
+  }
+
+  /* ── Content sections ──────────────────────────────────── */
+  .section {
+    padding: 6mm var(--margin);
+  }
+
+  .section-title {
+    font-size: 7px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--emerald-600);
+    margin-bottom: 4px;
+  }
+
+  .section-heading {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--navy-900);
+    letter-spacing: -0.3px;
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+
+  /* ── Comparison Table ──────────────────────────────────── */
+  .comparison {
+    padding: 6mm var(--margin);
+    background: var(--navy-50);
+  }
+
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5px;
+  }
+
+  .comparison-table thead th {
+    text-align: left;
+    padding: 6px 10px;
+    font-size: 7.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--neutral-500);
+    border-bottom: 2px solid var(--neutral-200);
+  }
+
+  .comparison-table thead th:first-child { width: 28%; }
+  .comparison-table thead th:nth-child(2) { width: 36%; }
+  .comparison-table thead th:nth-child(3) { width: 36%; }
+
+  .comparison-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--neutral-200);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  .comparison-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .comparison-table td:first-child {
+    font-weight: 600;
+    color: var(--navy-800);
+  }
+
+  .flow-cell { color: var(--emerald-600); font-weight: 500; }
+  .copilot-cell { color: var(--neutral-500); }
+
+  .tag {
+    display: inline-block;
+    font-size: 7px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 100px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+
+  .tag-flow {
+    background: var(--emerald-100);
+    color: var(--emerald-600);
+  }
+
+  .tag-copilot {
+    background: var(--neutral-200);
+    color: var(--neutral-500);
+  }
+
+  .check { color: var(--emerald-500); font-weight: 700; }
+  .cross { color: var(--neutral-300); }
+
+  /* ── Feature Grid ───────────────────────────────────────── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+    padding: 6mm var(--margin);
+  }
+
+  .feature-card {
+    border: 1px solid var(--neutral-200);
+    border-radius: 8px;
+    padding: var(--space-md) var(--space-md);
+    border-top: 3px solid var(--emerald-500);
+  }
+
+  .feature-card .icon {
+    color: var(--emerald-500);
+    margin-bottom: var(--space-sm);
+  }
+
+  .feature-card .icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .feature-card h3 {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--navy-900);
+    margin-bottom: 3px;
+    letter-spacing: -0.2px;
+  }
+
+  .feature-card p {
+    font-size: 8.5px;
+    color: var(--neutral-700);
+    line-height: 1.5;
+  }
+
+  /* ── Governance Pillars ────────────────────────────────── */
+  .pillars {
+    padding: 6mm var(--margin);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: var(--space-md);
+  }
+
+  .pillar {
+    text-align: center;
+    padding: var(--space-md) var(--space-sm);
+  }
+
+  .pillar .icon {
+    color: var(--navy-500);
+    margin-bottom: var(--space-sm);
+  }
+
+  .pillar .icon svg { width: 22px; height: 22px; }
+
+  .pillar h4 {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--navy-900);
+    margin-bottom: 3px;
+  }
+
+  .pillar p {
+    font-size: 7.5px;
+    color: var(--neutral-500);
+    line-height: 1.5;
+  }
+
+  /* ── CTA ────────────────────────────────────────────────── */
+  .cta-section {
+    background: var(--navy-900);
+    padding: 8mm var(--margin);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(ellipse at center, rgba(34, 176, 129, 0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .cta-section h2 {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--white);
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+    position: relative;
+  }
+
+  .cta-section p {
+    font-size: 10px;
+    color: var(--navy-300);
+    margin-bottom: 10px;
+    position: relative;
+  }
+
+  .cta-button {
+    display: inline-block;
+    background: var(--emerald-600);
+    color: var(--white);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 10px 28px;
+    border-radius: 8px;
+    text-decoration: none;
+    position: relative;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Footer ─────────────────────────────────────────────── */
+  .footer {
+    padding: 4mm var(--margin);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--neutral-200);
+    font-size: 7px;
+    color: var(--neutral-500);
+  }
+
+  .footer a {
+    color: var(--navy-500);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  /* ── Print ──────────────────────────────────────────────── */
+  @media print {
+    body { background: white; }
+    .page { box-shadow: none; margin: 0; width: 100%; min-height: 100vh; }
+    .cta-button { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .comparison { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .stat-item .number { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .feature-card { break-inside: avoid; }
+    .page { break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="12" width="24" height="4" rx="2" fill="#0F6B50"/>
+          <rect x="2" y="20" width="24" height="4" rx="2" fill="#158965"/>
+          <rect x="2" y="4" width="24" height="4" rx="2" fill="#22B081"/>
+        </svg>
+      </div>
+      <span class="logo-text">Flow</span>
+    </div>
+    <div class="header-badge">
+      <span>Self-hosted</span>
+      <span>Audit-first</span>
+      <span>BYO-LLM</span>
+    </div>
+  </div>
+
+  <!-- ── Hero ─────────────────────────────────────────────── -->
+  <div class="hero">
+    <div class="hero-badge">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+        <circle cx="5" cy="5" r="4" stroke="#5CCCA6" stroke-width="1.5"/>
+        <path d="M5 3v2.5" stroke="#5CCCA6" stroke-width="1.2" stroke-linecap="round"/>
+        <path d="M5 6.5h.005" stroke="#5CCCA6" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+      For government & enterprise
+    </div>
+    <h1>One chat to run <span class="highlight">your whole work</span></h1>
+    <p>Every employee gets a personal AI agent. Describe a process — it builds the workflow, executes it step-by-step, pauses for your approval, and delivers the result. Connected to your systems. Audited immutably. On your infrastructure.</p>
+  </div>
+
+  <!-- ── Stats ────────────────────────────────────────────── -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="number"><span class="accent">21</span></div>
+      <div class="label">Pre-built integrations</div>
+    </div>
+    <div class="stat-item">
+      <div class="number"><span class="accent">6</span></div>
+      <div class="label">Integration categories</div>
+    </div>
+    <div class="stat-item">
+      <div class="number"><span class="accent">100%</span></div>
+      <div class="label">Self-hosted · Sovereign</div>
+    </div>
+    <div class="stat-item">
+      <div class="number">Hash-<span class="accent">chain</span></div>
+      <div class="label">Immutable audit</div>
+    </div>
+  </div>
+
+  <!-- ── Comparison ───────────────────────────────────────── -->
+  <div class="comparison">
+    <div class="section-heading">Why Flow vs Microsoft Copilot for government</div>
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Dimension</th>
+          <th>Flow <span class="tag tag-flow">Winner</span></th>
+          <th>Copilot / Copilot Studio</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Deployment</td>
+          <td class="flow-cell">Self-hosted on sovereign AWS. Data never leaves Australian soil.</td>
+          <td class="copilot-cell">SaaS — even AU data centres subject to US CLOUD Act.</td>
+        </tr>
+        <tr>
+          <td>Cost at 10,000 users</td>
+          <td class="flow-cell">Fixed infrastructure cost. No per-seat tax as you scale.</td>
+          <td class="copilot-cell">~$360,000+/month (E3 + Copilot). Scales linearly with headcount.</td>
+        </tr>
+        <tr>
+          <td>AI control</td>
+          <td class="flow-cell">BYO-LLM. Bring your own model. Works with any OpenAI-compatible endpoint.</td>
+          <td class="copilot-cell">Locked to OpenAI models. No support for sovereign or custom LLMs.</td>
+        </tr>
+        <tr>
+          <td>Audit integrity</td>
+          <td class="flow-cell">Immutable hash-chain. Every action logged — tamper-evident. Full replay.</td>
+          <td class="copilot-cell">Azure Log Analytics — mutable. Not designed for classified requirements.</td>
+        </tr>
+        <tr>
+          <td>Human-in-the-loop</td>
+          <td class="flow-cell">Native. Workflows pause mid-execution. Approve or reject in chat.</td>
+          <td class="copilot-cell">Limited. Power Automate approvals exist but are not native to Copilot.</td>
+        </tr>
+        <tr>
+          <td>Data sovereignty</td>
+          <td class="flow-cell">Full control. Data stays in your chosen AWS AU region. No US access.</td>
+          <td class="copilot-cell">Microsoft must comply with US warrants, even from AU data centres.</td>
+        </tr>
+        <tr>
+          <td>Custom integrations</td>
+          <td class="flow-cell">21 pre-built (Postgres, Git, GitHub, web, filesystem, memory) + MCP extensible.</td>
+          <td class="copilot-cell">1000+ connectors but all cloud-dependent. No self-hosted option.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Features ─────────────────────────────────────────── -->
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="icon">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h10v10H4z"/><path d="M4 9h10"/><path d="M9 4v10"/>
+        </svg>
+      </div>
+      <h3>Build workflows from chat</h3>
+      <p>Describe a process in plain English. "Run the compliance report, research findings, draft it, send to me for approval." The agent compiles it into a structured workflow — no coding, no dragging boxes.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="9" r="7"/><path d="M9 5v4l3 2"/>
+        </svg>
+      </div>
+      <h3>Human checkpoints in chat</h3>
+      <p>Workflows pause when a decision is needed. Your agent tells you what's been done and asks you to approve or reject — right in the conversation. No tab-switching. No context lost.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 5l7-3 7 3v8l-7 3-7-3z"/><path d="M2 5l7 3M9 2v6"/>
+        </svg>
+      </div>
+      <h3><span style="color:var(--emerald-600)">21</span> pre-built integrations</h3>
+      <p>Postgres, Git, GitHub, filesystem, web fetch, and persistent memory — all built-in. Extensible via MCP for any custom system. Your agent talks to your tools like you do.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="12" height="12" rx="2"/><path d="M8 3v12"/><path d="M3 8h12"/>
+        </svg>
+      </div>
+      <h3>Skills — teach your agent once</h3>
+      <p>"Save this as a skill." Your agent remembers how. Share skills across the organisation. The next person asks, and the agent already knows how to handle it.</p>
+    </div>
+  </div>
+
+  <!-- ── Governance ───────────────────────────────────────── -->
+  <div style="padding: 4mm 15mm 2mm;">
+    <div class="section-title">Governance first</div>
+  </div>
+  <div class="pillars">
+    <div class="pillar">
+      <div class="icon">
+        <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="8" width="16" height="11" rx="2"/><path d="M7 8V5a4 4 0 018 0v3"/>
+        </svg>
+      </div>
+      <h4>Immutable Audit</h4>
+      <p>Hash-chain integrity on every action. Tamper-evident. Fully replayable for compliance audits.</p>
+    </div>
+    <div class="pillar">
+      <div class="icon">
+        <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="16" height="16" rx="2"/><path d="M11 3v16"/><path d="M3 11h16"/>
+        </svg>
+      </div>
+      <h4>Data Isolation</h4>
+      <p>Tenant-level separation. Employee A cannot see Employee B's data, workflows, or conversations.</p>
+    </div>
+    <div class="pillar">
+      <div class="icon">
+        <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2H2l2 7h16l2-7"/><path d="M4 9v9h14V9"/><circle cx="11" cy="16" r="1"/>
+        </svg>
+      </div>
+      <h4>BYO-LLM</h4>
+      <p>Bring your own model key. Any OpenAI-compatible endpoint. Data never leaves your trust boundary.</p>
+    </div>
+    <div class="pillar">
+      <div class="icon">
+        <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 20V8l9-5 9 5v12"/><path d="M2 8l9 5 9-5"/><path d="M2 14l9 5 9-5"/>
+        </svg>
+      </div>
+      <h4>Sovereign Infra</h4>
+      <p>Deploy on your AWS GovCloud. Your infrastructure. Your data. Your compliance boundary.</p>
+    </div>
+  </div>
+
+  <!-- ── CTA ──────────────────────────────────────────────── -->
+  <div class="cta-section">
+    <h2>Ready to deploy?</h2>
+    <p>Self-hosted on your AWS. Free tier to get started.</p>
+    <a href="#" class="cta-button">Book a demo</a>
+  </div>
+
+  <!-- ── Footer ───────────────────────────────────────────── -->
+  <div class="footer">
+    <span>Flow — Self-hosted AI Agent Platform</span>
+    <span>Built by Taran Croxton · <a href="mailto:taran@flowplatform.io">taran@flowplatform.io</a></span>
+  </div>
+
+</div>
+
+</body>
+</html>
