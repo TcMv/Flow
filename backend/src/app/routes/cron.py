@@ -17,7 +17,7 @@ from src.app.models.user import User
 from src.app.models.workflow import Workflow, WorkflowRun, WorkflowTaskRun
 from src.app.agent import AgentAuditLogger
 
-router = APIRouter(prefix="/cron", tags=["cron"])
+router = APIRouter(prefix="/api/cron", tags=["cron"])
 
 
 @router.get("/tick")
