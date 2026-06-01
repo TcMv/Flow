@@ -23,10 +23,18 @@ from src.app.routes.debug import router as debug_router
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Create database tables on startup; dispose engine on shutdown."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        # Run deferred migrations (adding columns to existing tables)
-        await _run_deferred_migrations(conn)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            # Run deferred migrations (adding columns to existing tables)
+            await _run_deferred_migrations(conn)
+    except Exception as e:
+        # Log but don't crash — allows health endpoint to work even if DB is
+        # temporarily unreachable (cold start race, network blip, etc.)
+        import logging
+        logging.getLogger("uvicorn.error").warning(
+            "DB init skipped — will retry on next cold start: %s", e
+        )
     # Register built-in agent tools
     setup_tools()
     yield
