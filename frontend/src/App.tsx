@@ -9,8 +9,8 @@ import { DashboardLayout } from "@/pages/DashboardLayout"
 import { DashboardHome } from "@/pages/DashboardHome"
 import { ChatPage } from "@/pages/ChatPage"
 import { SkillsPage } from "@/pages/SkillsPage"
+import { WorkflowsPage } from "@/pages/WorkflowsPage"
 import {
-  WorkflowsPage,
   KnowledgePage,
   SettingsPage,
 } from "@/pages/PlaceholderPages"
