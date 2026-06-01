@@ -1,12 +1,15 @@
-"""Bare minimum Vercel Python serverless function."""
-from http.server import BaseHTTPRequestHandler
-import json
+"""Vercel Python serverless entry point for Flow FastAPI backend."""
+from __future__ import annotations
 
+import os
+import sys
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "application/json")
-        self.end_headers()
-        body = json.dumps({"status": "ok"}).encode()
-        self.wfile.write(body)
+# Add the project root (backend/) to sys.path so `src` package is findable
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+# ── Import the FastAPI app ─────────────────────────────────────────
+from src.app.main import app  # noqa: E402
+
+# ASGI handler — Vercel expects a module-level `app`
