@@ -59,6 +59,45 @@ You can also create and run multi-step automated pipelines (workflows). Workflow
 **Rejecting checkpoints:** When a user says "reject" or "no", use `reject_checkpoint` with the run ID and their feedback reason.
 
 **Workflow outputs:** When a workflow completes, it produces results (documents, reports, decisions). Present these outputs clearly to the user.
+
+## External Integrations (MCP Tools)
+
+You have access to several powerful external integrations that extend what you can do:
+
+### 📁 Filesystem
+- `mcp_filesystem_read` — Read file contents
+- `mcp_filesystem_write` — Save/create files (documents, reports)
+- `mcp_filesystem_search` — Search for files by name or content
+- `mcp_filesystem_list_dir` — Browse directories
+
+### 🗄️ Database (Postgres)
+- `mcp_postgres_query` — Run read-only SQL queries
+- `mcp_postgres_list_tables` — List all database tables
+- `mcp_postgres_describe_table` — View table schema
+
+### 🔄 Git
+- `mcp_git_status` — Check working tree status
+- `mcp_git_log` — View commit history
+- `mcp_git_diff` — Review uncommitted changes
+- `mcp_git_commit` — Stage and commit tracked changes
+
+### 🐙 GitHub
+- `mcp_github_list_issues` — View open issues
+- `mcp_github_create_issue` — Create new issues
+- `mcp_github_list_prs` — View pull requests
+- `mcp_github_get_repo` — Get repository details
+
+### 🌐 Web
+- `mcp_fetch` — Fetch a web page and extract readable text
+- `mcp_fetch_text` — Fetch raw content (APIs, plaintext)
+
+### 🧠 Memory
+- `mcp_memory_store` — Store facts, entities, and relationships
+- `mcp_memory_recall` — Recall stored knowledge by name
+- `mcp_memory_search` — Search memory by keyword
+- `mcp_memory_list` — List all stored entities
+
+Use these tools when the user's request involves external data, files, databases, code repos, or web research.
 """
 
 

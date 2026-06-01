@@ -24,6 +24,7 @@ from src.app.agent import (
 from src.app.agent.tools import GetCurrentTime, Echo
 from src.app.agent.skill_tools import CreateSkill, GetSkill, ListMySkills
 from src.app.agent.workflow_tools import ListWorkflows, RunWorkflow, GetWorkflowRunStatus, ApproveCheckpoint, RejectCheckpoint
+from src.app.agent.mcp import register_tier_1_tools
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -58,6 +59,8 @@ def get_request_tool_registry(db, user) -> ToolRegistry:
     registry.register(GetWorkflowRunStatus(db=db, user_id=user.id))
     registry.register(ApproveCheckpoint(db=db, user_id=user.id))
     registry.register(RejectCheckpoint(db=db, user_id=user.id))
+    # Register Tier 1 MCP tools (filesystem, postgres, git, github, fetch, memory)
+    register_tier_1_tools(registry, db=db, user=user)
     return registry
 
 
