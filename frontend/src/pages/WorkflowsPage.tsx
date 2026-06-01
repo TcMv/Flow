@@ -41,6 +41,8 @@ interface WorkflowDef {
   definition: Record<string, unknown>
   source_text: string | null
   status: string
+  schedule: string | null
+  next_run_at: string | null
   owner_id: string
   owner_name: string | null
   created_at: string
@@ -157,6 +159,8 @@ export function WorkflowsPage() {
   const [runs, setRuns] = useState<WorkflowRun[]>([])
   const [loadingRuns, setLoadingRuns] = useState(false)
   const [running, setRunning] = useState(false)
+  const [cronInput, setCronInput] = useState("")
+  const [scheduling, setScheduling] = useState(false)
 
   useEffect(() => {
     loadWorkflows()
@@ -278,6 +282,40 @@ export function WorkflowsPage() {
     }
   }
 
+  // ── Schedule ──────────────────────────────────────────────────────
+
+  async function handleSchedule() {
+    if (!selectedWf || !cronInput.trim()) return
+    setScheduling(true)
+    try {
+      const updated = await request<WorkflowDef>(`/api/workflows/${selectedWf.id}/schedule`, {
+        method: "POST",
+        body: JSON.stringify({ cron_expression: cronInput.trim() }),
+      })
+      setSelectedWf(updated)
+      setCronInput("")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to set schedule")
+    } finally {
+      setScheduling(false)
+    }
+  }
+
+  async function handleUnschedule() {
+    if (!selectedWf) return
+    setScheduling(true)
+    try {
+      const updated = await request<WorkflowDef>(`/api/workflows/${selectedWf.id}/unschedule`, {
+        method: "POST",
+      })
+      setSelectedWf(updated)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to remove schedule")
+    } finally {
+      setScheduling(false)
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────
 
   if (selectedWf) {
@@ -311,6 +349,64 @@ export function WorkflowsPage() {
             </Button>
           </div>
         </div>
+
+        {/* Schedule */}
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Clock className="h-4 w-4 text-primary" />
+              Schedule
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {selectedWf.schedule ? (
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <code className="rounded bg-muted px-2 py-0.5 text-xs font-mono">
+                      {selectedWf.schedule}
+                    </code>
+                    <Badge variant="outline" className="text-[10px] text-green-600 bg-green-500/10 border-green-200">
+                      Active
+                    </Badge>
+                  </div>
+                  {selectedWf.next_run_at && (
+                    <p className="text-xs text-muted-foreground">
+                      Next run: {formatDateTime(selectedWf.next_run_at)}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUnschedule}
+                  disabled={scheduling}
+                  className="text-xs text-red-500 hover:text-red-600"
+                >
+                  {scheduling ? <Loader2 className="h-3 w-3 animate-spin" /> : "Remove"}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={cronInput}
+                  onChange={(e) => setCronInput(e.target.value)}
+                  placeholder="e.g. 0 9 * * 1-5 (weekdays at 9am)"
+                  className="h-8 flex-1 font-mono text-xs"
+                  onKeyDown={(e) => e.key === "Enter" && handleSchedule()}
+                />
+                <Button
+                  size="sm"
+                  onClick={handleSchedule}
+                  disabled={scheduling || !cronInput.trim()}
+                  className="h-8 text-xs"
+                >
+                  {scheduling ? <Loader2 className="h-3 w-3 animate-spin" /> : "Set Schedule"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Definition */}
         <Card className="border-border/50">
@@ -473,6 +569,15 @@ export function WorkflowsPage() {
                   <CardContent>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{wf.trigger}</span>
+                      {wf.schedule && wf.next_run_at && (
+                        <>
+                          <span>·</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Next: {formatDateTime(wf.next_run_at)}
+                          </span>
+                        </>
+                      )}
                       <span>·</span>
                       <span>Updated {formatDate(wf.updated_at)}</span>
                     </div>
