@@ -49,7 +49,7 @@ class UserInstalledSkill(Base):
     skill_id = Column(UUID(as_uuid=True), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
     installed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
-    user = relationship("User", back_populates="installed_skills", lazy="selectin")
+    user = relationship("User", lazy="selectin")
     skill = relationship("Skill", backref="installations", lazy="selectin")
 
 
