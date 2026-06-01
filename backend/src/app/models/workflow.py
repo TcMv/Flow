@@ -52,7 +52,7 @@ class WorkflowRun(Base):
 
     workflow = relationship("Workflow", back_populates="runs", lazy="selectin")
     user = relationship("User", lazy="selectin")
-    task_runs = relationship("WorkflowTaskRun", back_populates="run", lazy="selectin", cascade="all, delete-orphan")
+    task_runs = relationship("WorkflowTaskRun", back_populates="run", lazy="noload", cascade="all, delete-orphan")
 
 
 class WorkflowTaskRun(Base):

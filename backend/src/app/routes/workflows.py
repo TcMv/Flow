@@ -9,8 +9,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.app.auth import get_current_user
 from src.app.database import get_db
@@ -75,7 +76,7 @@ def _wf_to_dict(wf: Workflow) -> dict:
     }
 
 
-def _run_to_dict(run: WorkflowRun) -> dict:
+def _run_to_dict(run: WorkflowRun, task_runs: list | None = None) -> dict:
     return {
         "id": str(run.id),
         "workflow_id": str(run.workflow_id),
@@ -87,8 +88,19 @@ def _run_to_dict(run: WorkflowRun) -> dict:
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "completed_at": run.completed_at.isoformat() if run.completed_at else None,
         "created_at": run.created_at.isoformat() if run.created_at else "",
-        "task_runs": [_task_to_dict(t) for t in (run.task_runs or [])],
+        "task_runs": [_task_to_dict(t) for t in (task_runs or [])],
     }
+
+
+async def _with_task_runs(db: AsyncSession, run: WorkflowRun) -> dict:
+    """Helper: load task_runs for a run and return the serialised dict."""
+    result = await db.execute(
+        select(WorkflowTaskRun).where(
+            WorkflowTaskRun.run_id == run.id
+        ).order_by(WorkflowTaskRun.created_at)
+    )
+    task_runs = list(result.scalars().all())
+    return _run_to_dict(run, task_runs)
 
 
 def _task_to_dict(task: WorkflowTaskRun) -> dict:
@@ -558,7 +570,7 @@ async def _run_workflow_impl(
                     resource_id=str(run.id),
                     details=json.dumps({"task_id": tr.task_id, "skill": tr.skill_name}),
                 )
-                return _run_to_dict(run)
+                return _run_to_dict(run, task_runs)
 
             # For skill-type tasks, simulate execution (v1 — agent will handle actual skill calls)
             # In a real scenario, this would call the skill execution engine
@@ -577,7 +589,7 @@ async def _run_workflow_impl(
     run = run_with_tasks.scalar_one_or_none()
 
     if run and run.status == "paused":
-        return _run_to_dict(run)
+        return _run_to_dict(run, task_runs)
 
     # All done (or failed)
     if run:
@@ -596,7 +608,7 @@ async def _run_workflow_impl(
             details=json.dumps({"status": "completed", "workflow": wf.name}),
         )
 
-    return _run_to_dict(run)
+    return _run_to_dict(run, task_runs)
 
 
 @router.get("/{workflow_id}/runs")
@@ -619,13 +631,15 @@ async def list_runs(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your workflow.")
 
     result = await db.execute(
-        select(WorkflowRun).where(
+        select(WorkflowRun).options(
+            selectinload(WorkflowRun.task_runs)
+        ).where(
             WorkflowRun.workflow_id == wid
         ).order_by(WorkflowRun.created_at.desc()).limit(20)
     )
     runs = list(result.scalars().all())
 
-    return {"runs": [_run_to_dict(r) for r in runs]}
+    return {"runs": [_run_to_dict(r, r.task_runs) for r in runs]}
 
 
 # ── Run details & checkpoints ─────────────────────────────────────────
@@ -650,7 +664,7 @@ async def get_run(
     if run.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your run.")
 
-    return _run_to_dict(run)
+    return await _with_task_runs(db, run)
 
 
 @router.post("/runs/{run_id}/checkpoint")
@@ -728,7 +742,7 @@ async def handle_checkpoint(
             run.status = "failed"
             run.error = "Workflow deleted during run."
             await db.flush()
-            return _run_to_dict(run)
+            return _run_to_dict(run, task_runs)
 
         definition = json.loads(wf.definition)
         tasks = definition.get("tasks", [])
@@ -803,7 +817,7 @@ async def handle_checkpoint(
                     run.current_task_id = tr.task_id
                     run.status = "paused"
                     await db.flush()
-                    return _run_to_dict(run)
+                    return _run_to_dict(run, task_runs)
 
                 # Execute skill task
                 tr.output_data = json.dumps({
@@ -834,7 +848,7 @@ async def handle_checkpoint(
             details=json.dumps({"status": "completed", "approved": True}),
         )
 
-        return _run_to_dict(run)
+        return _run_to_dict(run, task_runs)
 
     else:
         # Rejected
@@ -845,4 +859,4 @@ async def handle_checkpoint(
         run.current_task_id = None
         await db.flush()
 
-        return _run_to_dict(run)
+        return _run_to_dict(run, task_runs)
