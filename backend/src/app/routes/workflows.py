@@ -56,6 +56,10 @@ class CheckpointDecision(BaseModel):
     feedback: str | None = None
 
 
+class ScheduleRequest(BaseModel):
+    cron_expression: str  # e.g. "0 9 * * 1-5"
+
+
 # ── Response helpers ────────────────────────────────────────────────
 
 
@@ -68,6 +72,8 @@ def _wf_to_dict(wf: Workflow) -> dict:
         "definition": json.loads(wf.definition) if wf.definition else {},
         "source_text": wf.source_text,
         "status": wf.status,
+        "schedule": wf.schedule,
+        "next_run_at": wf.next_run_at.isoformat() if wf.next_run_at else None,
         "owner_id": str(wf.owner_id),
         "owner_name": wf.owner.name if wf.owner else None,
         "created_at": wf.created_at.isoformat() if wf.created_at else "",
@@ -861,3 +867,79 @@ async def handle_checkpoint(
         await db.flush()
 
         return _run_to_dict(run, task_runs)
+
+
+# ── Schedule ────────────────────────────────────────────────────────
+
+
+@router.post("/{workflow_id}/schedule")
+async def schedule_workflow(
+    workflow_id: str,
+    body: ScheduleRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Set a cron schedule for a workflow."""
+    try:
+        wid = uuid.UUID(workflow_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid workflow ID.")
+
+    result = await db.execute(select(Workflow).where(Workflow.id == wid))
+    wf = result.scalar_one_or_none()
+    if not wf:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
+    if wf.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your workflow.")
+
+    # Validate cron expression
+    try:
+        from croniter import croniter
+        from datetime import datetime, timezone
+        base = datetime.now(timezone.utc)
+        croniter(body.cron_expression, base)
+    except (ValueError, KeyError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid cron expression: {e}",
+        )
+
+    wf.schedule = body.cron_expression
+    wf.trigger = "scheduled"
+
+    # Compute next run
+    cron = croniter(body.cron_expression, datetime.now(timezone.utc))
+    wf.next_run_at = cron.get_next(datetime)
+
+    wf.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    return _wf_to_dict(wf)
+
+
+@router.post("/{workflow_id}/unschedule")
+async def unschedule_workflow(
+    workflow_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Remove the schedule from a workflow."""
+    try:
+        wid = uuid.UUID(workflow_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid workflow ID.")
+
+    result = await db.execute(select(Workflow).where(Workflow.id == wid))
+    wf = result.scalar_one_or_none()
+    if not wf:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
+    if wf.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your workflow.")
+
+    wf.schedule = None
+    wf.next_run_at = None
+    wf.trigger = "chat"
+    wf.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    return _wf_to_dict(wf)

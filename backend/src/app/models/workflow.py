@@ -26,6 +26,8 @@ class Workflow(Base):
     status = Column(String(16), nullable=False, default="draft")  # draft | active | archived
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    schedule = Column(String(64), nullable=True, index=True)  # cron expression e.g. "0 9 * * 1-5"
+    next_run_at = Column(DateTime(timezone=True), nullable=True)  # next scheduled execution time
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

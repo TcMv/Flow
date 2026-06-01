@@ -16,6 +16,7 @@ from src.app.routes.agent import router as agent_router
 from src.app.routes.agent import setup_tools
 from src.app.routes.skills import router as skills_router
 from src.app.routes.workflows import router as workflows_router
+from src.app.routes.cron import router as cron_router
 from src.app.routes.debug import router as debug_router
 
 
@@ -44,6 +45,9 @@ async def _run_deferred_migrations(conn):
         "  installed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
         "  UNIQUE(user_id, skill_id)"
         ")",
+        # Schedule columns for workflows (PostgreSQL)
+        "ALTER TABLE workflows ADD COLUMN IF NOT EXISTS schedule VARCHAR(64)",
+        "ALTER TABLE workflows ADD COLUMN IF NOT EXISTS next_run_at TIMESTAMPTZ",
     ]:
         try:
             await conn.execute(text(stmt))
@@ -78,4 +82,5 @@ app.include_router(auth_router)
 app.include_router(agent_router)
 app.include_router(skills_router)
 app.include_router(workflows_router)
+app.include_router(cron_router)
 app.include_router(debug_router)
