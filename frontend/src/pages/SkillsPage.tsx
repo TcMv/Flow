@@ -1,25 +1,16 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-import { Wand2, Plus, Search, User, Globe, ExternalLink, Clock } from "lucide-react"
+import { SkillBuilderDialog } from "@/components/SkillBuilderDialog"
+import { Wand2, Search, User, Globe, ExternalLink, Clock } from "lucide-react"
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
 
@@ -62,12 +53,6 @@ export function SkillsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
-  const [newSkill, setNewSkill] = useState({
-    name: "",
-    description: "",
-    triggerCommand: "",
-    definitionStr: "",
-  })
   const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
@@ -121,27 +106,6 @@ export function SkillsPage() {
     }
   }
 
-  async function createSkill() {
-    if (!newSkill.name.trim()) return
-    setError(null)
-    try {
-      await request("/api/skills", {
-        method: "POST",
-        body: JSON.stringify({
-          name: newSkill.name.trim(),
-          description: newSkill.description.trim(),
-          trigger_command: newSkill.triggerCommand.trim() || null,
-          definition_str: newSkill.definitionStr.trim(),
-        }),
-      })
-      setCreateOpen(false)
-      setNewSkill({ name: "", description: "", triggerCommand: "", definitionStr: "" })
-      loadSkills()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create skill")
-    }
-  }
-
   async function submitToMarketplace(skillId: string) {
     try {
       await request(`/api/skills/${skillId}/submit`, { method: "POST" })
@@ -176,65 +140,27 @@ export function SkillsPage() {
             Create reusable capabilities via chat or browse the marketplace
           </p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Skill
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Create Skill</DialogTitle>
-              <DialogDescription>
-                Define a reusable capability. You can also create skills through chat.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <label className="text-sm font-medium">Name *</label>
-                <Input
-                  value={newSkill.name}
-                  onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })}
-                  placeholder="e.g. Policy Brief"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <Input
-                  value={newSkill.description}
-                  onChange={(e) => setNewSkill({ ...newSkill, description: e.target.value })}
-                  placeholder="What this skill does"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Trigger Command</label>
-                <Input
-                  value={newSkill.triggerCommand}
-                  onChange={(e) => setNewSkill({ ...newSkill, triggerCommand: e.target.value })}
-                  placeholder="/brief"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Definition</label>
-                <Textarea
-                  value={newSkill.definitionStr}
-                  onChange={(e) => setNewSkill({ ...newSkill, definitionStr: e.target.value })}
-                  placeholder="Describe what this skill does step by step..."
-                  rows={6}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={createSkill} disabled={!newSkill.name.trim()}>
-                Create Skill
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <Wand2 className="h-4 w-4" />
+          Build Skill
+        </Button>
+        <SkillBuilderDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onSave={async (data) => {
+            setError(null)
+            await request("/api/skills", {
+              method: "POST",
+              body: JSON.stringify({
+                name: data.name,
+                description: data.description,
+                trigger_command: data.triggerCommand || null,
+                definition_str: data.definitionStr,
+              }),
+            })
+            loadSkills()
+          }}
+        />
       </div>
 
       {/* Search */}
