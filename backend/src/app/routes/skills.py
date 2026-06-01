@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.app.auth import get_current_user
 from src.app.database import get_db
 from src.app.models.user import User, UserRole
-from src.app.models.skill import Skill, SkillExecution
+from src.app.models.skill import Skill, SkillExecution, UserInstalledSkill
 from src.app.agent.audit import AgentAuditLogger
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
@@ -162,6 +162,11 @@ async def list_skills(
         query = query.where(Skill.owner_id == current_user.id)
     elif scope == "marketplace":
         query = query.where(Skill.visibility == "marketplace", Skill.status == "approved")
+    elif scope == "installed":
+        # Skills the current user has installed
+        query = query.join(UserInstalledSkill, UserInstalledSkill.skill_id == Skill.id).where(
+            UserInstalledSkill.user_id == current_user.id
+        )
     else:
         # "all" — user's own + marketplace available to them
         query = query.where(
@@ -320,6 +325,120 @@ async def review_skill(
     await db.flush()
 
     return SkillResponse.from_orm(skill)
+
+
+@router.post("/{skill_id}/install", response_model=SkillResponse)
+async def install_skill(
+    skill_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SkillResponse:
+    """Install a marketplace skill for the current user."""
+    try:
+        sid = uuid.UUID(skill_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid skill ID.")
+
+    result = await db.execute(select(Skill).where(Skill.id == sid))
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found.")
+    if skill.visibility != "marketplace" or skill.status != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only approved marketplace skills can be installed.",
+        )
+
+    # Check if already installed
+    existing = await db.execute(
+        select(UserInstalledSkill).where(
+            UserInstalledSkill.user_id == current_user.id,
+            UserInstalledSkill.skill_id == sid,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Skill already installed.",
+        )
+
+    install = UserInstalledSkill(
+        id=uuid.uuid4(),
+        user_id=current_user.id,
+        skill_id=sid,
+        installed_at=datetime.now(timezone.utc),
+    )
+    db.add(install)
+    await db.flush()
+
+    audit = AgentAuditLogger(db)
+    await audit.log(
+        tenant_id=current_user.tenant_id,
+        actor_id=current_user.id,
+        action_type="skill.installed",
+        resource_type="skill",
+        resource_id=str(skill.id),
+        details=json.dumps({"name": skill.name}),
+    )
+
+    return SkillResponse.from_orm(skill)
+
+
+@router.post("/{skill_id}/uninstall", status_code=status.HTTP_204_NO_CONTENT)
+async def uninstall_skill(
+    skill_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Uninstall a marketplace skill."""
+    try:
+        sid = uuid.UUID(skill_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid skill ID.")
+
+    result = await db.execute(
+        select(UserInstalledSkill).where(
+            UserInstalledSkill.user_id == current_user.id,
+            UserInstalledSkill.skill_id == sid,
+        )
+    )
+    install = result.scalar_one_or_none()
+    if not install:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not installed.")
+
+    await db.delete(install)
+    await db.flush()
+
+    audit = AgentAuditLogger(db)
+    await audit.log(
+        tenant_id=current_user.tenant_id,
+        actor_id=current_user.id,
+        action_type="skill.uninstalled",
+        resource_type="skill",
+        resource_id=str(sid),
+        details="{}",
+    )
+
+
+@router.get("/{skill_id}/installed", response_model=dict)
+async def check_installed(
+    skill_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Check if the current user has installed a specific skill."""
+    try:
+        sid = uuid.UUID(skill_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid skill ID.")
+
+    result = await db.execute(
+        select(UserInstalledSkill).where(
+            UserInstalledSkill.user_id == current_user.id,
+            UserInstalledSkill.skill_id == sid,
+        )
+    )
+    return {"installed": result.scalar_one_or_none() is not None}
 
 
 @router.post("/{skill_id}/execute", response_model=SkillExecutionResponse)

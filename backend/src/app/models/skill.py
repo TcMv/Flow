@@ -32,8 +32,25 @@ class Skill(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
+    # Who has installed this skill (many-to-many)
+    installed_by_users = relationship("User", secondary="user_installed_skills", back_populates="installed_skills", lazy="selectin")
+
     # Relationships
     owner = relationship("User", backref="skills", lazy="selectin")
+
+
+class UserInstalledSkill(Base):
+    """Tracks which users have installed which marketplace skills."""
+
+    __tablename__ = "user_installed_skills"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    skill_id = Column(UUID(as_uuid=True), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
+    installed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates="installed_skills", lazy="selectin")
+    skill = relationship("Skill", backref="installations", lazy="selectin")
 
 
 class SkillExecution(Base):

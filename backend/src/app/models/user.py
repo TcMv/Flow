@@ -51,6 +51,12 @@ class User(Base):
 
     # ── Relationships ────────────────────────────────────────────
     tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="users")
+    installed_skills: Mapped[list["Skill"]] = relationship(
+        "Skill",
+        secondary="user_installed_skills",
+        back_populates="installed_by_users",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<User id={self.id!r} email={self.email!r} role={self.role!r}>"

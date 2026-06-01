@@ -35,6 +35,14 @@ async def _run_deferred_migrations(conn):
     """Apply schema changes that can't go in the model definitions."""
     for stmt in [
         "ALTER TABLE agent_messages ADD COLUMN IF NOT EXISTS tool_call_id VARCHAR(64)",
+        # Installed skills tracking (PostgreSQL)
+        "CREATE TABLE IF NOT EXISTS user_installed_skills ("
+        "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),"
+        "  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,"
+        "  skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,"
+        "  installed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+        "  UNIQUE(user_id, skill_id)"
+        ")",
     ]:
         try:
             await conn.execute(text(stmt))

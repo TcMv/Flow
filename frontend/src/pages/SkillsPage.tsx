@@ -10,7 +10,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { SkillBuilderDialog } from "@/components/SkillBuilderDialog"
-import { Wand2, Search, User, Globe, ExternalLink, Clock } from "lucide-react"
+import { Wand2, Search, User, Globe, ExternalLink, Clock, Check, Download, Trash2 } from "lucide-react"
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
 
@@ -50,6 +50,7 @@ function statusBadge(status: string) {
 export function SkillsPage() {
   const [skills, setSkills] = useState<Skill[]>([])
   const [marketplaceSkills, setMarketplaceSkills] = useState<Skill[]>([])
+  const [installedSkills, setInstalledSkills] = useState<Skill[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -58,6 +59,7 @@ export function SkillsPage() {
   useEffect(() => {
     loadSkills()
     loadMarketplace()
+    loadInstalled()
   }, [])
 
   async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -106,12 +108,45 @@ export function SkillsPage() {
     }
   }
 
+  async function loadInstalled() {
+    try {
+      const data = await request<{ skills: Skill[] }>("/api/skills?scope=installed")
+      setInstalledSkills(data.skills)
+    } catch {
+      // Non-critical
+    }
+  }
+
+  function isInstalled(skillId: string): boolean {
+    return installedSkills.some((s) => s.id === skillId)
+  }
+
   async function submitToMarketplace(skillId: string) {
     try {
       await request(`/api/skills/${skillId}/submit`, { method: "POST" })
       loadSkills()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to submit")
+    }
+  }
+
+  async function installSkill(skillId: string) {
+    try {
+      await request(`/api/skills/${skillId}/install`, { method: "POST" })
+      loadInstalled()
+      loadMarketplace()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to install")
+    }
+  }
+
+  async function uninstallSkill(skillId: string) {
+    try {
+      await request(`/api/skills/${skillId}/uninstall`, { method: "POST" })
+      loadInstalled()
+      loadMarketplace()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to uninstall")
     }
   }
 
@@ -194,6 +229,10 @@ export function SkillsPage() {
           <TabsTrigger value="marketplace" className="gap-2">
             <Globe className="h-4 w-4" />
             Marketplace ({marketplaceSkills.length})
+          </TabsTrigger>
+          <TabsTrigger value="installed" className="gap-2">
+            <Check className="h-4 w-4" />
+            Installed ({installedSkills.length})
           </TabsTrigger>
         </TabsList>
 
@@ -280,8 +319,88 @@ export function SkillsPage() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {marketplaceSkills.map((skill) => (
-                <Card key={skill.id}>
+              {marketplaceSkills.map((skill) => {
+                const installed = isInstalled(skill.id)
+                return (
+                  <Card key={skill.id} className="group relative">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-base">{skill.name}</CardTitle>
+                          {skill.trigger_command && (
+                            <code className="mt-0.5 inline-block rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                              {skill.trigger_command}
+                            </code>
+                          )}
+                        </div>
+                        {installed ? (
+                          <Badge className="ml-2 border border-green-200 bg-green-500/10 text-[10px] text-green-600">
+                            <Check className="mr-1 h-3 w-3" />
+                            Installed
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="ml-2 text-[10px]">
+                            {skill.status}
+                          </Badge>
+                        )}
+                      </div>
+                      <CardDescription className="mt-1 line-clamp-2 text-xs">
+                        {skill.description || "No description"}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                        {skill.owner_name && (
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {skill.owner_name}
+                          </span>
+                        )}
+                        <ExternalLink className="h-3 w-3" />
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        {installed ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-destructive hover:text-destructive"
+                            onClick={() => uninstallSkill(skill.id)}
+                          >
+                            <Trash2 className="mr-1 h-3 w-3" />
+                            Uninstall
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => installSkill(skill.id)}
+                          >
+                            <Download className="mr-1 h-3 w-3" />
+                            Install
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="installed" className="space-y-4">
+          {installedSkills.length === 0 ? (
+            <div className="py-12 text-center">
+              <Download className="mx-auto mb-4 h-10 w-10 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">
+                No installed skills. Browse the marketplace to find skills to install.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {installedSkills.map((skill) => (
+                <Card key={skill.id} className="group relative">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
@@ -292,7 +411,10 @@ export function SkillsPage() {
                           </code>
                         )}
                       </div>
-                      <ExternalLink className="ml-2 h-4 w-4 text-muted-foreground" />
+                      <Badge className="ml-2 border border-green-200 bg-green-500/10 text-[10px] text-green-600">
+                        <Check className="mr-1 h-3 w-3" />
+                        Installed
+                      </Badge>
                     </div>
                     <CardDescription className="mt-1 line-clamp-2 text-xs">
                       {skill.description || "No description"}
@@ -306,9 +428,17 @@ export function SkillsPage() {
                           {skill.owner_name}
                         </span>
                       )}
-                      <Badge variant="outline" className="text-[10px]">
-                        {skill.status}
-                      </Badge>
+                    </div>
+                    <div className="mt-3 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-destructive hover:text-destructive"
+                        onClick={() => uninstallSkill(skill.id)}
+                      >
+                        <Trash2 className="mr-1 h-3 w-3" />
+                        Uninstall
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

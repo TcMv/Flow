@@ -82,9 +82,15 @@ class AgentEngine:
 
             # ── 2. Build context ───────────────────────────────────
             tool_descriptions = self._tools.tool_descriptions_for_prompt()
+
+            # Load installed skills (once, then cache on first iteration)
+            if iterations == 1:
+                installed_skills_text = await self._format_installed_skills(db)
+
             system_prompt = SystemPromptBuilder.build(
                 user=self._user,
                 tool_descriptions=tool_descriptions,
+                installed_skills=installed_skills_text,
             )
             history = await self._session_manager.get_history(db, session_id)
             messages = [
@@ -188,3 +194,32 @@ class AgentEngine:
             await self._session_manager.update_title(
                 db, session_id, title,
             )
+
+    async def _format_installed_skills(
+        self,
+        db: AsyncSession,
+    ) -> str:
+        """Query the user's installed marketplace skills and format them for the system prompt."""
+        from src.app.models.skill import Skill, UserInstalledSkill
+        from sqlalchemy import select
+
+        result = await db.execute(
+            select(Skill)
+            .join(UserInstalledSkill, UserInstalledSkill.skill_id == Skill.id)
+            .where(
+                UserInstalledSkill.user_id == self._user.id,
+                Skill.visibility == "marketplace",
+                Skill.status == "approved",
+            )
+            .order_by(Skill.name)
+        )
+        skills = list(result.scalars().all())
+
+        if not skills:
+            return "None installed yet — create them via chat or browse the marketplace."
+
+        lines = []
+        for s in skills:
+            cmd = f" (`{s.trigger_command}`)" if s.trigger_command else ""
+            lines.append(f"- {s.name}{cmd}: {s.description or 'No description'}")
+        return "\n".join(lines)

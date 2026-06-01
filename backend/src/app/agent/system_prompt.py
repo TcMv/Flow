@@ -37,6 +37,12 @@ When a user mentions a skill name or types a command like `/commandname`:
 Use `list_my_skills` to see all skills you've created when the user asks "what skills do I have?"
 
 Skills persist across sessions — once created, they're available anytime the user talks to you.
+
+## Your Installed Skills
+
+These are skills available on this platform that you can invoke for the current user. When the user's request matches one of these, use `get_skill` to look up its definition and follow it.
+
+{installed_skills}
 """
 
 
@@ -51,17 +57,22 @@ class SystemPromptBuilder:
     def build(
         user: User | None = None,
         tool_descriptions: str = "",
+        installed_skills: str = "",
     ) -> str:
         """Assemble the final system prompt.
 
         Args:
             user: The current user (may have custom ``agent_config``).
             tool_descriptions: Human-readable tool descriptions string.
+            installed_skills: Formatted list of installed platform skills.
 
         Returns:
             The complete system prompt text.
         """
-        prompt = DEFAULT_SYSTEM_PROMPT.format(tool_descriptions=tool_descriptions)
+        prompt = DEFAULT_SYSTEM_PROMPT.format(
+            tool_descriptions=tool_descriptions,
+            installed_skills=installed_skills,
+        )
 
         # Apply per-user custom system prompt if configured
         if user and user.agent_config:
@@ -71,7 +82,10 @@ class SystemPromptBuilder:
                 config = json.loads(user.agent_config)
                 custom_prompt = config.get("system_prompt")
                 if custom_prompt:
-                    prompt = custom_prompt.format(tool_descriptions=tool_descriptions)
+                    prompt = custom_prompt.format(
+                        tool_descriptions=tool_descriptions,
+                        installed_skills=installed_skills,
+                    )
             except (json.JSONDecodeError, AttributeError):
                 pass
 
