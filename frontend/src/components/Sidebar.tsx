@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/dashboard/agents", icon: Bot, label: "Agents" },
+  { to: "/dashboard/skills", icon: Bot, label: "Skills" },
   { to: "/dashboard/chat", icon: MessagesSquare, label: "Chat" },
   { to: "/dashboard/workflows", icon: Workflow, label: "Workflows" },
   { to: "/dashboard/knowledge", icon: Database, label: "Knowledge" },

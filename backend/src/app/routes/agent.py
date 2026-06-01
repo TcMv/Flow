@@ -22,26 +22,41 @@ from src.app.agent import (
     AgentEngine,
 )
 from src.app.agent.tools import GetCurrentTime, Echo
+from src.app.agent.skill_tools import CreateSkill, GetSkill, ListMySkills
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
-# ── Singleton tool registry (initialised at app startup) ─────────────
-_tool_registry: ToolRegistry | None = None
+# ── Singleton tool registries ─────────────────────────────────────────
+
+_base_tool_registry: ToolRegistry | None = None
 
 
-def get_tool_registry() -> ToolRegistry:
-    """Return the global tool registry (registered at startup)."""
-    global _tool_registry
-    if _tool_registry is None:
-        _tool_registry = ToolRegistry()
-        _tool_registry.register(GetCurrentTime())
-        _tool_registry.register(Echo())
-    return _tool_registry
+def get_base_tool_registry() -> ToolRegistry:
+    """Return the base tool registry with static tools (no DB dependency)."""
+    global _base_tool_registry
+    if _base_tool_registry is None:
+        _base_tool_registry = ToolRegistry()
+        _base_tool_registry.register(GetCurrentTime())
+        _base_tool_registry.register(Echo())
+    return _base_tool_registry
+
+
+def get_request_tool_registry(db, user) -> ToolRegistry:
+    """Return a tool registry for a specific request, including DB-backed tools."""
+    registry = ToolRegistry()
+    # Copy base tools
+    for tool in get_base_tool_registry().list_tools():
+        registry.register(tool)
+    # Register DB-backed skill tools with request context
+    registry.register(CreateSkill(db=db, user_id=user.id, tenant_id=user.tenant_id))
+    registry.register(GetSkill(db=db, user_id=user.id, tenant_id=user.tenant_id))
+    registry.register(ListMySkills(db=db, user_id=user.id))
+    return registry
 
 
 def setup_tools() -> None:
     """Called at app startup to pre-register built-in tools."""
-    get_tool_registry()
+    get_base_tool_registry()
 
 
 # ── Request / Response Schemas ──────────────────────────────────────
@@ -111,7 +126,7 @@ async def chat(
 
     # 3. Build the engine and run
     llm_router = LLMRouter(llm_key)
-    tool_registry = get_tool_registry()
+    tool_registry = get_request_tool_registry(db, current_user)
     audit_logger = AgentAuditLogger(db)
     session_manager = AgentSessionManager()
 

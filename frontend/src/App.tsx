@@ -8,8 +8,8 @@ import { Register } from "@/pages/Register"
 import { DashboardLayout } from "@/pages/DashboardLayout"
 import { DashboardHome } from "@/pages/DashboardHome"
 import { ChatPage } from "@/pages/ChatPage"
+import { SkillsPage } from "@/pages/SkillsPage"
 import {
-  AgentsPage,
   WorkflowsPage,
   KnowledgePage,
   SettingsPage,
@@ -29,7 +29,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<DashboardHome />} />
-              <Route path="/dashboard/agents" element={<AgentsPage />} />
+              <Route path="/dashboard/skills" element={<SkillsPage />} />
               <Route path="/dashboard/chat" element={<ChatPage />} />
               <Route path="/dashboard/workflows" element={<WorkflowsPage />} />
               <Route path="/dashboard/knowledge" element={<KnowledgePage />} />
