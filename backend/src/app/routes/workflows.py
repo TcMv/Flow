@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from src.app.auth import get_current_user
 from src.app.database import get_db
@@ -631,15 +630,17 @@ async def list_runs(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your workflow.")
 
     result = await db.execute(
-        select(WorkflowRun).options(
-            selectinload(WorkflowRun.task_runs)
-        ).where(
+        select(WorkflowRun).where(
             WorkflowRun.workflow_id == wid
         ).order_by(WorkflowRun.created_at.desc()).limit(20)
     )
     runs = list(result.scalars().all())
 
-    return {"runs": [_run_to_dict(r, r.task_runs) for r in runs]}
+    # Serialise runs with their task_runs
+    run_dicts = []
+    for r in runs:
+        run_dicts.append(await _with_task_runs(db, r))
+    return {"runs": run_dicts}
 
 
 # ── Run details & checkpoints ─────────────────────────────────────────

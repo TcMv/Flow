@@ -52,7 +52,6 @@ class WorkflowRun(Base):
 
     workflow = relationship("Workflow", back_populates="runs", lazy="selectin")
     user = relationship("User", lazy="selectin")
-    task_runs = relationship("WorkflowTaskRun", back_populates="run", lazy="noload", cascade="all, delete-orphan")
 
 
 class WorkflowTaskRun(Base):
@@ -73,4 +72,4 @@ class WorkflowTaskRun(Base):
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
-    run = relationship("WorkflowRun", back_populates="task_runs", lazy="selectin")
+    run = relationship("WorkflowRun", backref="task_runs_ref", lazy="noload")
