@@ -289,8 +289,6 @@ export function SkillBuilderDialog({ open, onOpenChange, onSave }: SkillBuilderD
 
             <div className="space-y-2">
               {steps.map((s, i) => {
-                const Icon = getStepIcon(s.type)
-                const color = getStepColor(s.type)
                 const isLast = i === steps.length - 1
 
                 return (
