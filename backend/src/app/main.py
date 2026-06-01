@@ -18,6 +18,7 @@ from src.app.routes.skills import router as skills_router
 from src.app.routes.workflows import router as workflows_router
 from src.app.routes.cron import router as cron_router
 from src.app.routes.debug import router as debug_router
+from src.app.routes.demo import router as demo_router
 
 
 @asynccontextmanager
@@ -92,3 +93,4 @@ app.include_router(skills_router)
 app.include_router(workflows_router)
 app.include_router(cron_router)
 app.include_router(debug_router)
+app.include_router(demo_router)
