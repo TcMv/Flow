@@ -23,25 +23,6 @@ export function AgentsPage() {
   )
 }
 
-export function ChatPage() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Chat</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Interact with your agents</p>
-      </div>
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-base">Chat Interface</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Real-time chat with agents. This page will be built out in Phase 1.
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
 export function WorkflowsPage() {
   return (
     <div className="space-y-6">

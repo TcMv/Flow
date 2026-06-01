@@ -7,9 +7,9 @@ import { Login } from "@/pages/Login"
 import { Register } from "@/pages/Register"
 import { DashboardLayout } from "@/pages/DashboardLayout"
 import { DashboardHome } from "@/pages/DashboardHome"
+import { ChatPage } from "@/pages/ChatPage"
 import {
   AgentsPage,
-  ChatPage,
   WorkflowsPage,
   KnowledgePage,
   SettingsPage,
