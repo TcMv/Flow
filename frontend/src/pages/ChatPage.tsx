@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Bot, Send, Plus, Trash2, User, MessageSquare } from "lucide-react"
+import { Bot, Send, Plus, Trash2, User, MessageSquare, PanelLeftClose, PanelLeft, X } from "lucide-react"
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
 
@@ -86,6 +86,7 @@ export function ChatPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -253,22 +254,50 @@ export function ChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] -mx-8 -mt-8 gap-0">
+    <div className="flex h-[calc(100vh-3.5rem)] -mx-8 -mt-8 gap-0 relative">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 sm:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Toggle button — mobile */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="fixed bottom-24 left-4 z-40 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg sm:hidden"
+        aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+      >
+        {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+      </button>
+
       {/* Session sidebar */}
-      <div className="flex w-72 flex-col border-r border-border bg-sidebar-background">
+      <div className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-border bg-sidebar-background transition-transform duration-200 sm:relative sm:translate-x-0 ${
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Sessions
           </h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={newSession}
-            className="h-7 gap-1.5 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            New
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={newSession}
+              className="h-7 gap-1.5 text-xs"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New
+            </Button>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground sm:hidden"
+              aria-label="Close sidebar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-3">
