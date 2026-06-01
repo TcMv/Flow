@@ -17,7 +17,6 @@ import {
   Wand2,
   Plus,
   Trash2,
-  GripVertical,
   Bot,
   Search,
   FileText,
@@ -165,10 +164,8 @@ export function SkillBuilderDialog({ open, onOpenChange, onSave }: SkillBuilderD
     if (!name.trim()) return
     setSaving(true)
     try {
-      // Always append a "Deliver" step if not present
-      const finalSteps = steps[steps.length - 1]?.type === "deliver"
-        ? steps
-        : [...steps, { id: crypto.randomUUID(), type: "custom" as const, description: "Deliver the final output to the user", details: "Format and present the result clearly." }]
+      // Always append a final "Deliver" step
+      const finalSteps = [...steps, { id: crypto.randomUUID(), type: "custom" as const, description: "Deliver the final output to the user", details: "Format and present the result clearly." }]
 
       const definitionStr = generateDefinition(finalSteps, inputs, clarifyQuestions)
       await onSave({
