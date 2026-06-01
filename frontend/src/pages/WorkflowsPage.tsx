@@ -14,7 +14,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -151,7 +150,6 @@ export function WorkflowsPage() {
   const [wfName, setWfName] = useState("")
   const [compiling, setCompiling] = useState(false)
   const [compiledDef, setCompiledDef] = useState<Record<string, unknown> | null>(null)
-  const [saveOpen, setSaveOpen] = useState(false)
   const [saving, setSaving] = useState(false)
 
   // Detail state
@@ -221,7 +219,6 @@ export function WorkflowsPage() {
       setProcessDesc("")
       setWfName("")
       setCompilerOpen(false)
-      setSaveOpen(false)
       loadWorkflows()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save workflow")
@@ -249,7 +246,7 @@ export function WorkflowsPage() {
     if (!selectedWf) return
     setRunning(true)
     try {
-      const run = await request<WorkflowRun>(`/api/workflows/${selectedWf.id}/run`, {
+      await request<WorkflowRun>(`/api/workflows/${selectedWf.id}/run`, {
         method: "POST",
       })
       // Reload runs
@@ -262,9 +259,9 @@ export function WorkflowsPage() {
     }
   }
 
-  async function handleCheckpoint(runId: string, taskId: string, approved: boolean) {
+  async function handleCheckpoint(runId: string, _taskId: string, approved: boolean) {
     try {
-      const run = await request<WorkflowRun>(`/api/workflows/runs/${runId}/checkpoint`, {
+      await request<WorkflowRun>(`/api/workflows/runs/${runId}/checkpoint`, {
         method: "POST",
         body: JSON.stringify({
           approved,
