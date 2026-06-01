@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timezone
 
@@ -114,6 +115,7 @@ class AgentSessionManager:
         role: str,
         content: str,
         tool_calls: str | None = None,
+        tool_call_id: str | None = None,
     ) -> AgentMessage:
         """Append a message to the session history."""
         msg = AgentMessage(
@@ -122,6 +124,7 @@ class AgentSessionManager:
             role=role,
             content=content,
             tool_calls=tool_calls,
+            tool_call_id=tool_call_id,
             created_at=datetime.now(timezone.utc),
         )
         db.add(msg)
@@ -165,6 +168,19 @@ class AgentSessionManager:
         history = []
         for msg in recent:
             entry: dict = {"role": msg.role, "content": msg.content}
+
+            # Include tool_calls for assistant messages that called tools
+            if msg.role == "assistant" and msg.tool_calls:
+                try:
+                    entry["tool_calls"] = json.loads(msg.tool_calls)
+                    entry["content"] = None  # OpenAI spec: null content when tools present
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            # Include tool_call_id for tool result messages
+            if msg.role == "tool" and msg.tool_call_id:
+                entry["tool_call_id"] = msg.tool_call_id
+
             history.append(entry)
 
         return history

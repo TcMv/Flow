@@ -110,6 +110,7 @@ class AgentEngine:
                 for tc in tool_calls:
                     tool_name = tc["function"]["name"]
                     arguments = tc["function"]["arguments"]
+                    call_id = tc.get("id", "")
 
                     # Log tool call
                     if self._audit:
@@ -135,7 +136,7 @@ class AgentEngine:
                     )
                     await self._session_manager.add_message(
                         db, session_id, "tool", result,
-                        tool_calls=json.dumps({"tool_name": tool_name}),
+                        tool_call_id=call_id,
                     )
 
                 # Continue the loop — let LLM see tool results

@@ -43,6 +43,12 @@ class AgentMessage(Base):
         default=None,
         comment="JSON-encoded tool call metadata (if any)",
     )
+    tool_call_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        default=None,
+        comment="ID of the tool call this message is a result of",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
