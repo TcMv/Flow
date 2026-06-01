@@ -1,61 +1,31 @@
-"""Debug route — tests each component independently for Vercel troubleshooting."""
-
+"""Debug routes — for local testing & diagnostics."""
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Request
+
+from src.app.auth import get_current_user
+from src.app.models.user import User
 
 router = APIRouter(prefix="/api/debug", tags=["debug"])
 
 
-@router.get("")
-async def debug():
-    from src.app.config import settings
-
-    result = {
-        "env_checks": {},
-        "db_checks": {},
-        "crypto_checks": {},
-        "errors": [],
+@router.get("/me")
+async def debug_me(current_user: User = Depends(get_current_user)) -> dict:
+    """Return the current user's info (requires auth)."""
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "role": str(current_user.role),
+        "tenant_id": str(current_user.tenant_id),
     }
 
-    # 1. Environment
-    result["env_checks"]["DATABASE_URL_set"] = bool(settings.database_url)
-    result["env_checks"]["DATABASE_URL_prefix"] = (settings.database_url or "MISSING")[:50]
-    result["env_checks"]["ENCRYPTION_KEY_set"] = bool(settings.encryption_key)
-    result["env_checks"]["FLOW_API_KEY_set"] = bool(settings.flow_api_key)
-    result["env_checks"]["DEBUG"] = settings.debug
 
-    # 2. DB connection
-    try:
-        from src.app.database import async_session_factory
-        from sqlalchemy import text, select, func
-        from src.app.models.tenant import Tenant
-
-        async with async_session_factory() as session:
-            r = await session.execute(text("SELECT 1 as ping"))
-            result["db_checks"]["ping"] = r.scalar() == 1
-            r2 = await session.execute(select(func.count(Tenant.id)))
-            result["db_checks"]["tenant_count"] = r2.scalar()
-    except Exception as e:
-        result["db_checks"]["error"] = f"{type(e).__name__}: {str(e)[:300]}"
-        result["errors"].append(str(e)[:200])
-
-    # 3. Fernet
-    try:
-        from src.app.agent.llm import encrypt_api_key, decrypt_api_key
-        enc = encrypt_api_key("test")
-        dec = decrypt_api_key(enc)
-        result["crypto_checks"]["fernet"] = dec == "test"
-    except Exception as e:
-        result["crypto_checks"]["fernet"] = f"FAIL: {type(e).__name__}: {str(e)[:200]}"
-
-    # 4. Bcrypt
-    try:
-        from src.app.auth.utils import hash_password, verify_password
-        h = hash_password("test1234")
-        result["crypto_checks"]["bcrypt_hash"] = bool(h)
-        result["crypto_checks"]["bcrypt_verify"] = verify_password("test1234", h)
-    except Exception as e:
-        result["crypto_checks"]["bcrypt"] = f"FAIL: {type(e).__name__}: {str(e)[:200]}"
-
-    return result
+@router.post("/me")
+async def debug_me_post(current_user: User = Depends(get_current_user)) -> dict:
+    """Same as GET but via POST."""
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "role": str(current_user.role),
+        "tenant_id": str(current_user.tenant_id),
+    }
