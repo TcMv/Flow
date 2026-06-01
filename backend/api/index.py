@@ -1,8 +1,12 @@
-"""Minimal test — see if Vercel Python serverless works at all."""
-from fastapi import FastAPI
+"""Bare minimum Vercel Python serverless function."""
+from http.server import BaseHTTPRequestHandler
+import json
 
-app = FastAPI()
 
-@app.get("/health")
-async def health():
-    return {"status": "minimal-ok"}
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "application/json")
+        self.end_headers()
+        body = json.dumps({"status": "ok"}).encode()
+        self.wfile.write(body)
