@@ -1,0 +1,1 @@
+curl -s -X POST "https://api.vercel.com/v10/projects/prj_aAA4plG7tcxhxfwCoIHAi67X5HsP/env" -H "Authorization: Bearer *** -H "Content-Type: application/json" -d '{"key":"VITE_API_URL","value":"https://backend-liard-alpha-17.vercel.app","target":["production","preview"],"type":"plain"}'
