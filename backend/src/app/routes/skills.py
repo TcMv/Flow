@@ -300,7 +300,7 @@ async def review_skill(
     db: AsyncSession = Depends(get_db),
 ) -> SkillResponse:
     """Approve or reject a marketplace submission (managers/admins only)."""
-    if current_user.role not in (UserRole.ADMIN, UserRole.MANAGER):
+    if current_user.role not in (UserRole.admin, UserRole.manager):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only managers and admins can review skills.")
 
     try:

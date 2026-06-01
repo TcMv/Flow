@@ -7,6 +7,7 @@ from src.app.models.llm_key import LLMKey
 from src.app.models.agent_session import AgentSession
 from src.app.models.agent_message import AgentMessage
 from src.app.models.skill import Skill, SkillExecution
+from src.app.models.workflow import Workflow, WorkflowRun, WorkflowTaskRun
 
 __all__ = [
     "Tenant",
@@ -18,4 +19,7 @@ __all__ = [
     "AgentMessage",
     "Skill",
     "SkillExecution",
+    "Workflow",
+    "WorkflowRun",
+    "WorkflowTaskRun",
 ]

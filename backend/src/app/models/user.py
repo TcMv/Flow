@@ -15,6 +15,7 @@ from src.app.database import Base
 
 class UserRole(StrEnum):
     admin = "admin"
+    manager = "manager"
     builder = "builder"
     user = "user"
 
