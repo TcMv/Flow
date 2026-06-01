@@ -1,1 +1,1 @@
-# Flow - AI Agent Platform
+# Flow Platform
