@@ -229,7 +229,7 @@ async def _get_active_llm_key(
             tenant_id=tenant_id,
             provider=settings.flow_llm_provider,
             api_key_encrypted=encrypt_api_key(settings.flow_api_key),
-            base_url=None,
+            base_url=settings.flow_llm_base_url,
             model_name=settings.flow_llm_model,
             is_active=True,
         )

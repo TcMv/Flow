@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     flow_api_key: str | None = None
     flow_llm_provider: str = "openai"
     flow_llm_model: str = "gpt-4o-mini"
+    flow_llm_base_url: str | None = None
+    # For DeepSeek: provider=custom, model=deepseek-chat, base_url=https://api.deepseek.com
 
 
 settings = Settings()
