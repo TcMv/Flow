@@ -69,6 +69,7 @@ class WorkflowTaskRun(Base):
     input_data = Column(Text, nullable=True)  # JSON — resolved inputs
     output_data = Column(Text, nullable=True)  # JSON — task output
     feedback = Column(Text, nullable=True)  # human feedback on rejection
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
