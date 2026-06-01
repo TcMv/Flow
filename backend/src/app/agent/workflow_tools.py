@@ -198,6 +198,10 @@ class RunWorkflow(Tool):
                             completed_text += f"  • `{task_id}` → {status_val}: {summary}\n"
                             if result_val and result_val != summary:
                                 completed_text += f"    Result: {result_val}\n"
+                    completed_text += (
+                        f"\n📄 **Download results:** {run.get('run_link', '')}"
+                        f"\nYou can also download this as a PDF or DOCX from the Workflows page."
+                    )
                 except (json.JSONDecodeError, TypeError):
                     completed_text += f"\nResult: {result_raw[:500]}"
 

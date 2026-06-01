@@ -21,6 +21,7 @@ import {
   Play,
   Plus,
   FileText,
+  Download,
   Loader2,
   CheckCircle2,
   XCircle,
@@ -453,9 +454,39 @@ export function WorkflowsPage() {
                           {formatDateTime(run.started_at || run.created_at)}
                         </span>
                       </div>
-                      {run.error && (
-                        <span className="text-xs text-red-500">{run.error}</span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {run.status === "completed" && (
+                          <div className="flex gap-1">
+                            <a
+                              href={`${API_URL}/api/documents/render/${run.id}?format=pdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                              onClick={(e) => {
+                                if (!confirm("Download this workflow result as PDF?")) e.preventDefault()
+                              }}
+                            >
+                              <Download className="h-3 w-3" />
+                              PDF
+                            </a>
+                            <a
+                              href={`${API_URL}/api/documents/render/${run.id}?format=docx`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                              onClick={(e) => {
+                                if (!confirm("Download this workflow result as DOCX?")) e.preventDefault()
+                              }}
+                            >
+                              <Download className="h-3 w-3" />
+                              DOCX
+                            </a>
+                          </div>
+                        )}
+                        {run.error && (
+                          <span className="text-xs text-red-500">{run.error}</span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Task traces */}
