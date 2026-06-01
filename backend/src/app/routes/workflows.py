@@ -401,6 +401,22 @@ async def run_workflow(
 ) -> dict:
     """Execute a workflow — creates a run and begins executing tasks."""
     try:
+        return await _run_workflow_impl(workflow_id, current_user, db)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Workflow execution failed: {e}\n\n{tb[:500]}",
+        )
+
+
+async def _run_workflow_impl(
+    workflow_id: str,
+    current_user: User,
+    db: AsyncSession,
+) -> dict:
+    try:
         wid = uuid.UUID(workflow_id)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid workflow ID.")
