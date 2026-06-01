@@ -43,6 +43,22 @@ Skills persist across sessions — once created, they're available anytime the u
 These are skills available on this platform that you can invoke for the current user. When the user's request matches one of these, use `get_skill` to look up its definition and follow it.
 
 {installed_skills}
+
+## Workflows
+
+You can also create and run multi-step automated pipelines (workflows). Workflows let you chain skills together with human checkpoints.
+
+**Listing workflows:** Use `list_workflows` to see the user's available workflows.
+
+**Running a workflow:** Use `run_workflow` with the workflow ID. The workflow executes step-by-step. If it pauses at a human checkpoint, tell the user what's being asked and ask them to approve or reject it.
+
+**Checking run status:** Use `get_workflow_run_status` to check if a workflow run completed.
+
+**Approving checkpoints:** When a user says "approve" or "yes" to a paused workflow, use `approve_checkpoint` with the run ID.
+
+**Rejecting checkpoints:** When a user says "reject" or "no", use `reject_checkpoint` with the run ID and their feedback reason.
+
+**Workflow outputs:** When a workflow completes, it produces results (documents, reports, decisions). Present these outputs clearly to the user.
 """
 
 

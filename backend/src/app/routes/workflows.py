@@ -943,3 +943,427 @@ async def unschedule_workflow(
     await db.flush()
 
     return _wf_to_dict(wf)
+
+
+# ── Internal API (for agent tools to call without HTTPExceptions) ────
+
+
+async def run_workflow_internal(
+    workflow_id: uuid.UUID,
+    user_id: uuid.UUID,
+    db: AsyncSession,
+) -> dict:
+    """Execute a workflow — returns the same dict as run_workflow() but
+    raises ValueError/AssertionError instead of HTTPException.
+
+    Returns the serialised run dict (with task_runs).
+    """
+
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
+    wf = result.scalar_one_or_none()
+    if not wf:
+        raise ValueError(f"Workflow {workflow_id} not found.")
+    if wf.owner_id != user_id:
+        raise ValueError("Not your workflow.")
+
+    definition = json.loads(wf.definition)
+    tasks = definition.get("tasks", [])
+    if not tasks:
+        raise ValueError("Workflow has no tasks.")
+
+    now = datetime.now(timezone.utc)
+    run = WorkflowRun(
+        id=uuid.uuid4(),
+        workflow_id=wf.id,
+        user_id=user_id,
+        tenant_id=wf.tenant_id,
+        status="running",
+        started_at=now,
+        created_at=now,
+    )
+    db.add(run)
+
+    for task_def in tasks:
+        task_run = WorkflowTaskRun(
+            id=uuid.uuid4(),
+            run_id=run.id,
+            task_id=task_def.get("id", f"task_{tasks.index(task_def) + 1}"),
+            skill_name=task_def.get("skill"),
+            task_type=task_def.get("type", "skill"),
+            status="pending",
+            input_data=json.dumps(task_def.get("inputs", {})),
+        )
+        db.add(task_run)
+
+    await db.flush()
+
+    # Execute step-by-step
+    executed: set[str] = set()
+    result_tasks = await db.execute(
+        select(WorkflowTaskRun).where(
+            WorkflowTaskRun.run_id == run.id,
+        ).order_by(WorkflowTaskRun.created_at)
+    )
+    task_runs = list(result_tasks.scalars().all())
+    task_run_map: dict[str, WorkflowTaskRun] = {tr.task_id: tr for tr in task_runs}
+    task_def_map: dict[str, dict] = {t.get("id"): t for t in tasks}
+
+    max_iterations = 50
+    iteration = 0
+    all_completed = False
+
+    while not all_completed and iteration < max_iterations:
+        iteration += 1
+        all_completed = True
+
+        for tr in task_runs:
+            if tr.task_id in executed or tr.status in ("completed", "failed", "skipped", "waiting_for_approval"):
+                continue
+
+            task_def = task_def_map.get(tr.task_id)
+            if not task_def:
+                tr.status = "failed"
+                tr.output_data = json.dumps({"error": "Task definition not found"})
+                await db.flush()
+                continue
+
+            depends_on = task_def.get("depends_on", [])
+            deps_met = all(dep in executed for dep in depends_on)
+            if not deps_met:
+                all_completed = False
+                continue
+
+            all_completed = False
+            tr.status = "running"
+            tr.started_at = datetime.now(timezone.utc)
+            await db.flush()
+
+            # Resolve inputs
+            resolved_inputs: dict = {}
+            raw_inputs = task_def.get("inputs", {})
+            for key, value in raw_inputs.items():
+                if isinstance(value, str) and "{{" in value:
+                    resolved = value
+                    for dep_task_id in depends_on:
+                        dep_tr = task_run_map.get(dep_task_id)
+                        if dep_tr and dep_tr.output_data:
+                            try:
+                                dep_output = json.loads(dep_tr.output_data)
+                                for out_key, out_val in (dep_output or {}).items():
+                                    resolved = resolved.replace(f"{{{{{dep_task_id}.{out_key}}}}}", str(out_val))
+                                    resolved = resolved.replace(f"{{{{task.{out_key}}}}}", str(out_val))
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                    resolved_inputs[key] = resolved
+                else:
+                    resolved_inputs[key] = value
+
+            tr.input_data = json.dumps(resolved_inputs)
+
+            # Human approval tasks pause
+            if tr.task_type == "human_approval":
+                tr.status = "waiting_for_approval"
+                run.current_task_id = tr.task_id
+                run.status = "paused"
+                await db.flush()
+
+                audit = AgentAuditLogger(db)
+                await audit.log(
+                    tenant_id=wf.tenant_id,
+                    actor_id=user_id,
+                    action_type="workflow.checkpoint_paused",
+                    resource_type="workflow_run",
+                    resource_id=str(run.id),
+                    details=json.dumps({"task_id": tr.task_id, "skill": tr.skill_name}),
+                )
+
+                # Reload task_runs for serialization
+                fin_result = await db.execute(
+                    select(WorkflowTaskRun).where(
+                        WorkflowTaskRun.run_id == run.id,
+                    ).order_by(WorkflowTaskRun.created_at)
+                )
+                return _run_to_dict(run, list(fin_result.scalars().all()))
+
+            # Skill task — produce output
+            tr.output_data = json.dumps({
+                "status": "completed",
+                "summary": f"Executed {tr.skill_name} with inputs: {resolved_inputs}",
+                "result": f"Output from {tr.skill_name} completed successfully.",
+            })
+            tr.status = "completed"
+            tr.completed_at = datetime.now(timezone.utc)
+            executed.add(tr.task_id)
+            await db.flush()
+
+    # Reload run to check if it was paused
+    fr = await db.execute(select(WorkflowRun).where(WorkflowRun.id == run.id))
+    run = fr.scalar_one_or_none()
+    if run and run.status == "paused":
+        fin_result = await db.execute(
+            select(WorkflowTaskRun).where(
+                WorkflowTaskRun.run_id == run.id,
+            ).order_by(WorkflowTaskRun.created_at)
+        )
+        return _run_to_dict(run, list(fin_result.scalars().all()))
+
+    # All done
+    if run:
+        run.completed_at = datetime.now(timezone.utc)
+        run.status = "completed"
+
+        # Build result from all task outputs
+        fin_result = await db.execute(
+            select(WorkflowTaskRun).where(
+                WorkflowTaskRun.run_id == run.id,
+            ).order_by(WorkflowTaskRun.created_at)
+        )
+        all_task_runs = list(fin_result.scalars().all())
+
+        outputs: dict[str, Any] = {"summary": "Workflow completed successfully."}
+        try:
+            for tr in all_task_runs:
+                if tr.output_data:
+                    tr_output = json.loads(tr.output_data)
+                    outputs[tr.task_id] = tr_output
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        run.result = json.dumps(outputs)
+
+        # Also collect output definitions from the workflow definition
+        output_defs: list[str] = []
+        for t in tasks:
+            task_outputs = t.get("outputs", {})
+            for key, val in task_outputs.items():
+                output_defs.append(f"- **{key}**: {val}")
+
+        final_outputs = {
+            "summary": f"Workflow '{wf.name}' completed successfully.",
+            "workflow_name": wf.name,
+            "outputs": output_defs,
+            "task_results": {tr.task_id: json.loads(tr.output_data) if tr.output_data else {}
+                            for tr in all_task_runs if tr.output_data},
+        }
+        run.result = json.dumps(final_outputs)
+        await db.flush()
+
+        audit = AgentAuditLogger(db)
+        await audit.log(
+            tenant_id=wf.tenant_id,
+            actor_id=user_id,
+            action_type="workflow.completed",
+            resource_type="workflow_run",
+            resource_id=str(run.id),
+            details=json.dumps({"status": "completed", "workflow": wf.name}),
+        )
+
+        return _run_to_dict(run, all_task_runs)
+
+    return {}
+
+
+async def resume_workflow_internal(
+    run_id: uuid.UUID,
+    approved: bool,
+    feedback: str | None,
+    user_id: uuid.UUID,
+    db: AsyncSession,
+) -> dict:
+    """Handle a checkpoint decision from agent tools.
+
+    Returns the serialised run dict.
+    """
+    result = await db.execute(select(WorkflowRun).where(WorkflowRun.id == run_id))
+    run = result.scalar_one_or_none()
+    if not run:
+        raise ValueError(f"Run {run_id} not found.")
+    if run.status != "paused":
+        raise ValueError(f"Run {run_id} is not paused (status={run.status}).")
+
+    checkpoint_task_id = run.current_task_id
+    if not checkpoint_task_id:
+        raise ValueError("No checkpoint task found.")
+
+    result = await db.execute(
+        select(WorkflowTaskRun).where(
+            WorkflowTaskRun.run_id == run.id,
+            WorkflowTaskRun.task_id == checkpoint_task_id,
+        )
+    )
+    task_run = result.scalar_one_or_none()
+    if not task_run:
+        raise ValueError("Checkpoint task not found.")
+
+    now = datetime.now(timezone.utc)
+    task_run.completed_at = now
+    task_run.feedback = feedback
+    task_run.output_data = json.dumps({
+        "approved": approved,
+        "feedback": feedback,
+    })
+
+    audit = AgentAuditLogger(db)
+    await audit.log(
+        tenant_id=run.tenant_id,
+        actor_id=user_id,
+        action_type="workflow.checkpoint_decision",
+        resource_type="workflow_run",
+        resource_id=str(run.id),
+        details=json.dumps({
+            "task_id": checkpoint_task_id,
+            "approved": approved,
+            "feedback": feedback,
+        }),
+    )
+
+    if approved:
+        task_run.status = "completed"
+        run.status = "running"
+        run.current_task_id = None
+        await db.flush()
+
+        # Resume execution
+        wf_result = await db.execute(select(Workflow).where(Workflow.id == run.workflow_id))
+        wf = wf_result.scalar_one_or_none()
+        if not wf:
+            run.status = "failed"
+            run.error = "Workflow deleted during run."
+            await db.flush()
+            fin_result = await db.execute(
+                select(WorkflowTaskRun).where(
+                    WorkflowTaskRun.run_id == run.id,
+                ).order_by(WorkflowTaskRun.created_at)
+            )
+            return _run_to_dict(run, list(fin_result.scalars().all()))
+
+        definition = json.loads(wf.definition)
+        tasks = definition.get("tasks", [])
+
+        result = await db.execute(
+            select(WorkflowTaskRun).where(
+                WorkflowTaskRun.run_id == run.id,
+            ).order_by(WorkflowTaskRun.created_at)
+        )
+        task_runs = list(result.scalars().all())
+        task_run_map = {tr.task_id: tr for tr in task_runs}
+
+        executed = {tr.task_id for tr in task_runs if tr.status == "completed"}
+
+        max_iterations = 50
+        iteration = 0
+
+        while iteration < max_iterations:
+            iteration += 1
+            progressed = False
+
+            for tr in task_runs:
+                if tr.task_id in executed or tr.status in ("completed", "failed", "skipped", "waiting_for_approval"):
+                    continue
+
+                task_def = None
+                for t in tasks:
+                    if t.get("id") == tr.task_id:
+                        task_def = t
+                        break
+                if not task_def:
+                    tr.status = "failed"
+                    await db.flush()
+                    continue
+
+                depends_on = task_def.get("depends_on", [])
+                deps_met = all(dep in executed for dep in depends_on)
+                if not deps_met:
+                    continue
+
+                progressed = True
+                tr.status = "running"
+                tr.started_at = datetime.now(timezone.utc)
+                await db.flush()
+
+                resolved_inputs = {}
+                raw_inputs = task_def.get("inputs", {})
+                for key, value in raw_inputs.items():
+                    if isinstance(value, str) and "{{" in value:
+                        resolved = value
+                        for dep_task_id in depends_on:
+                            dep_tr = task_run_map.get(dep_task_id)
+                            if dep_tr and dep_tr.output_data:
+                                try:
+                                    dep_output = json.loads(dep_tr.output_data)
+                                    for out_key, out_val in (dep_output or {}).items():
+                                        resolved = resolved.replace(f"{{{{{dep_task_id}.{out_key}}}}}", str(out_val))
+                                except (json.JSONDecodeError, TypeError):
+                                    pass
+                        resolved_inputs[key] = resolved
+                    else:
+                        resolved_inputs[key] = value
+
+                tr.input_data = json.dumps(resolved_inputs)
+
+                if tr.task_type == "human_approval":
+                    tr.status = "waiting_for_approval"
+                    run.current_task_id = tr.task_id
+                    run.status = "paused"
+                    await db.flush()
+                    return _run_to_dict(run, task_runs)
+
+                tr.output_data = json.dumps({
+                    "status": "completed",
+                    "summary": f"Executed {tr.skill_name} with inputs: {resolved_inputs}",
+                    "result": f"Output from {tr.skill_name}.",
+                })
+                tr.status = "completed"
+                tr.completed_at = datetime.now(timezone.utc)
+                executed.add(tr.task_id)
+                await db.flush()
+
+            if not progressed:
+                break
+
+        # All done
+        run.completed_at = datetime.now(timezone.utc)
+        run.status = "completed"
+
+        output_defs: list[str] = []
+        for t in tasks:
+            task_outputs = t.get("outputs", {})
+            for key, val in task_outputs.items():
+                output_defs.append(f"- **{key}**: {val}")
+
+        final_outputs = {
+            "summary": f"Workflow '{wf.name}' completed successfully.",
+            "workflow_name": wf.name,
+            "outputs": output_defs,
+            "task_results": {tr.task_id: json.loads(tr.output_data) if tr.output_data else {}
+                            for tr in task_runs if tr.output_data},
+        }
+        run.result = json.dumps(final_outputs)
+        await db.flush()
+
+        await audit.log(
+            tenant_id=run.tenant_id,
+            actor_id=user_id,
+            action_type="workflow.completed",
+            resource_type="workflow_run",
+            resource_id=str(run.id),
+            details=json.dumps({"status": "completed", "approved": True}),
+        )
+
+        return _run_to_dict(run, task_runs)
+
+    else:
+        # Rejected
+        task_run.status = "failed"
+        run.status = "failed"
+        run.error = feedback or "Rejected by user"
+        run.completed_at = now
+        run.current_task_id = None
+        await db.flush()
+
+        fin_result = await db.execute(
+            select(WorkflowTaskRun).where(
+                WorkflowTaskRun.run_id == run.id,
+            ).order_by(WorkflowTaskRun.created_at)
+        )
+        return _run_to_dict(run, list(fin_result.scalars().all()))

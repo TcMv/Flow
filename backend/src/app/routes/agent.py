@@ -23,6 +23,7 @@ from src.app.agent import (
 )
 from src.app.agent.tools import GetCurrentTime, Echo
 from src.app.agent.skill_tools import CreateSkill, GetSkill, ListMySkills
+from src.app.agent.workflow_tools import ListWorkflows, RunWorkflow, GetWorkflowRunStatus, ApproveCheckpoint, RejectCheckpoint
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -51,6 +52,12 @@ def get_request_tool_registry(db, user) -> ToolRegistry:
     registry.register(CreateSkill(db=db, user_id=user.id, tenant_id=user.tenant_id))
     registry.register(GetSkill(db=db, user_id=user.id, tenant_id=user.tenant_id))
     registry.register(ListMySkills(db=db, user_id=user.id))
+    # Register DB-backed workflow tools with request context
+    registry.register(ListWorkflows(db=db, user_id=user.id))
+    registry.register(RunWorkflow(db=db, user_id=user.id))
+    registry.register(GetWorkflowRunStatus(db=db, user_id=user.id))
+    registry.register(ApproveCheckpoint(db=db, user_id=user.id))
+    registry.register(RejectCheckpoint(db=db, user_id=user.id))
     return registry
 
 
